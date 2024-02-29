@@ -5,6 +5,8 @@
 #include <ostream>
 #include <iostream>
 #include <ctime>
+#include <stddef.h>
+
 using namespace std;
 
 // Global variables for spaceship position and velocity
@@ -100,6 +102,45 @@ void updateShipPosition() {
     }
 }
 
+
+void checkAsteroidCollision() {
+    for (size_t i = 0; i < asteroids.size(); ++i) {
+        for (size_t j = i + 1; j < asteroids.size(); ++j) {
+            Asteroid& asteroid1 = asteroids[i];
+            Asteroid& asteroid2 = asteroids[j];
+
+            // Check if the boundaries of the two asteroids touch
+            if (fabs(asteroid1.x - asteroid2.x) * 2 < (asteroid1.size + asteroid2.size) &&
+                fabs(asteroid1.y - asteroid2.y) * 2 < (asteroid1.size + asteroid2.size)) {
+                
+                // Calculate new velocities based on conservation of momentum and kinetic energy
+
+                // Calculate total momentum before collision in x and y directions
+                float totalMomentumX = asteroid1.speedX + asteroid2.speedX;
+                float totalMomentumY = asteroid1.speedY + asteroid2.speedY;
+
+                // Calculate center of mass velocity in x and y directions
+                float comVelocityX = totalMomentumX / 2.0f;
+                float comVelocityY = totalMomentumY / 2.0f;
+
+                // Calculate relative velocity in x and y directions
+                float relVelX1 = asteroid1.speedX - comVelocityX;
+                float relVelY1 = asteroid1.speedY - comVelocityY;
+                float relVelX2 = asteroid2.speedX - comVelocityX;
+                float relVelY2 = asteroid2.speedY - comVelocityY;
+
+                // Calculate new velocities after collision using conservation of momentum and kinetic energy
+                asteroid1.speedX = comVelocityX + relVelX2;
+                asteroid1.speedY = comVelocityY + relVelY2;
+                asteroid2.speedX = comVelocityX + relVelX1;
+                asteroid2.speedY = comVelocityY + relVelY1;
+            }
+        }
+    }
+}
+
+
+
 // Render function
 void display() {
     glClear(GL_COLOR_BUFFER_BIT);
@@ -150,7 +191,9 @@ void display() {
                 shipY = 0.0f;
             }
         }
+
     }
+    checkAsteroidCollision();
 
     updateShipPosition(); // Update ship position
 
