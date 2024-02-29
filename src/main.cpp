@@ -5,7 +5,7 @@
 #include <ostream>
 #include <iostream>
 #include <ctime>
-#include <stddef.h>
+#include <unistd.h>
 
 using namespace std;
 
@@ -35,16 +35,22 @@ void initAsteroids(int numAsteroids) {
     asteroids.clear();
     srand(time(NULL)); // Seed the random number generator
 
+    // Get the size of the window
+    int windowWidth = glutGet(GLUT_WINDOW_WIDTH);
+    int windowHeight = glutGet(GLUT_WINDOW_HEIGHT);
+
     for (int i = 0; i < numAsteroids; ++i) {
         Asteroid asteroid;
-        asteroid.x = -1.0f + static_cast<float>(rand()) / (RAND_MAX / 2.0f); // Random x position between -1 and 1
-        asteroid.y = 0.5f + static_cast<float>(rand()) / (RAND_MAX / 2.0f); // Random y position between 0.5 and 1
         asteroid.size = 0.05f + static_cast<float>(rand()) / (RAND_MAX / 0.1f); // Random size between 0.05 and 0.15
+        asteroid.x = -1.0f + static_cast<float>(rand()) / (RAND_MAX / (2.0f - 2 * asteroid.size)); // Random x position within visible area
+        asteroid.y = -1.0f + static_cast<float>(rand()) / (RAND_MAX / (2.0f - 2 * asteroid.size)); // Random y position within visible area
         asteroid.speedX = static_cast<float>(rand()) / RAND_MAX * 0.01f - 0.005f; // Random speed between -0.005 and 0.005 in x direction
         asteroid.speedY = static_cast<float>(rand()) / RAND_MAX * 0.01f - 0.005f; // Random speed between -0.005 and 0.005 in y direction
+
         asteroids.push_back(asteroid);
     }
 }
+
 
 // Function to check collision between two objects (bounding box collision)
 bool checkCollision(float x1, float y1, float size1, float x2, float y2, float size2) {
@@ -52,6 +58,11 @@ bool checkCollision(float x1, float y1, float size1, float x2, float y2, float s
 }
 
 int lives = 3; // Number of lives
+int level = 1; // Current level
+int numAsteroids = 5; // Initial number of asteroids
+float asteroidSpeed = 0.0f; // Initial speed of asteroids
+int levelDuration = 20; // Duration of each level in seconds
+time_t levelStartTime; // Start time of the current level
 
 // Keyboard input function
 void keyboard(int key, int x, int y) {
@@ -102,7 +113,6 @@ void updateShipPosition() {
     }
 }
 
-
 void checkAsteroidCollision() {
     for (size_t i = 0; i < asteroids.size(); ++i) {
         for (size_t j = i + 1; j < asteroids.size(); ++j) {
@@ -139,7 +149,32 @@ void checkAsteroidCollision() {
     }
 }
 
+// Function to reset the game for the next level
+void resetGameForNextLevel() {
+    shipX = 0.0f;
+    shipY = 0.0f;
+    shipVelX = 0.0f;
+    shipVelY = 0.0f;
+    initAsteroids(numAsteroids);
+    levelStartTime = time(NULL);
+}
 
+// Function to handle level transitions
+void checkLevelTransition() {
+    time_t currentTime = time(NULL);
+    int elapsedTime = difftime(currentTime, levelStartTime);
+    if (elapsedTime >= levelDuration) {
+        // Proceed to the next level
+        level++;
+        numAsteroids += 3; // Increase the number of asteroids for each level
+        asteroidSpeed += 0.001f; // Increase the speed of asteroids for each level
+        resetGameForNextLevel();
+    }
+    if (level>3){
+        cout << "Game Over, You Won!" << endl;
+        exit(0);
+    }
+}
 
 // Render function
 void display() {
@@ -191,10 +226,10 @@ void display() {
                 shipY = 0.0f;
             }
         }
-
     }
-    checkAsteroidCollision();
 
+    checkAsteroidCollision();
+    checkLevelTransition();
     updateShipPosition(); // Update ship position
 
     // Render spaceship
@@ -219,10 +254,20 @@ void display() {
     }
     glPopMatrix();
 
+    // Render current level
+    glPushMatrix();
+    glLoadIdentity();
+    glTranslatef(0.0f, 0.8f, 0.0f); // Position level text
+    glColor3f(1.0f, 1.0f, 1.0f); // White color for text
+    string levelText = "Level: " + to_string(level);
+    for (char& c : levelText) {
+        glutBitmapCharacter(GLUT_BITMAP_TIMES_ROMAN_24, c);
+    }
+    glPopMatrix();
+
     glutSwapBuffers();
     glutPostRedisplay(); // Request redisplay to continue rendering
 }
-
 
 // Main function
 int main(int argc, char** argv) {
@@ -236,8 +281,8 @@ int main(int argc, char** argv) {
 
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 
-    initAsteroids(10); // Initialize 10 asteroids
-
+    resetGameForNextLevel(); // Initialize the game for the first level
+    
     glutMainLoop();
     return 0;
 }
