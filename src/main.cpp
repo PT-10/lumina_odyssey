@@ -9,7 +9,14 @@
 
 using namespace std;
 
-// Global variables for spaceship position and velocity
+enum GameState {
+    PLAYING,
+    GAME_OVER,
+    GAME_WON
+};
+
+GameState gameState = PLAYING;
+
 float shipX = 0.0f;
 float shipY = 0.0f;
 float shipSize = 0.1f;
@@ -19,7 +26,6 @@ float maxSpeed = 0.02f;
 float acceleration = 0.001f;
 float friction = 0.99f;
 
-// Structure for asteroid
 struct Asteroid {
     float x;
     float y;
@@ -28,43 +34,67 @@ struct Asteroid {
     float speedY;
 };
 
-std::vector<Asteroid> asteroids;
+struct PowerUp {
+    float x;
+    float y;
+    float size;
+    time_t spawnTime;
+    bool pickedUp;
+};
 
-// Function to initialize asteroids
+std::vector<Asteroid> asteroids;
+std::vector<PowerUp> powerUps;
+bool powerUpSpawned = false;
+
 void initAsteroids(int numAsteroids) {
     asteroids.clear();
-    srand(time(NULL)); // Seed the random number generator
-
-    // Get the size of the window
+    srand(time(NULL));
     int windowWidth = glutGet(GLUT_WINDOW_WIDTH);
     int windowHeight = glutGet(GLUT_WINDOW_HEIGHT);
-
+    
     for (int i = 0; i < numAsteroids; ++i) {
         Asteroid asteroid;
-        asteroid.size = 0.05f + static_cast<float>(rand()) / (RAND_MAX / 0.1f); // Random size between 0.05 and 0.15
-        asteroid.x = -1.0f + static_cast<float>(rand()) / (RAND_MAX / (2.0f - 2 * asteroid.size)); // Random x position within visible area
-        asteroid.y = -1.0f + static_cast<float>(rand()) / (RAND_MAX / (2.0f - 2 * asteroid.size)); // Random y position within visible area
-        asteroid.speedX = static_cast<float>(rand()) / RAND_MAX * 0.01f - 0.005f; // Random speed between -0.005 and 0.005 in x direction
-        asteroid.speedY = static_cast<float>(rand()) / RAND_MAX * 0.01f - 0.005f; // Random speed between -0.005 and 0.005 in y direction
+        asteroid.size = 0.05f + static_cast<float>(rand()) / (RAND_MAX / 0.1f);
+        asteroid.x = -1.0f + static_cast<float>(rand()) / (RAND_MAX / (2.0f - 2 * asteroid.size));
+        asteroid.y = -1.0f + static_cast<float>(rand()) / (RAND_MAX / (2.0f - 2 * asteroid.size));
+        asteroid.speedX = static_cast<float>(rand()) / RAND_MAX * 0.01f - 0.005f;
+        asteroid.speedY = static_cast<float>(rand()) / RAND_MAX * 0.01f - 0.005f;
 
         asteroids.push_back(asteroid);
     }
 }
 
+void spawnPowerUp() {
+    if (!powerUpSpawned) {
+        PowerUp powerUp;
+        powerUp.size = 0.05f;
+        powerUp.x = -1.0f + static_cast<float>(rand()) / (RAND_MAX / 2.0f);
+        powerUp.y = -1.0f + static_cast<float>(rand()) / (RAND_MAX / 2.0f);
+        powerUp.spawnTime = time(NULL);
+        powerUp.pickedUp = false;
 
-// Function to check collision between two objects (bounding box collision)
-bool checkCollision(float x1, float y1, float size1, float x2, float y2, float size2) {
-    return (fabs(x1 - x2) * 2 < (size1 + size2)) && (fabs(y1 - y2) * 2 < (size1 + size2));
+        powerUps.clear(); // Remove previous power-up
+        powerUps.push_back(powerUp);
+        powerUpSpawned = true;
+    }
 }
 
-int lives = 3; // Number of lives
-int level = 1; // Current level
-int numAsteroids = 5; // Initial number of asteroids
-float asteroidSpeed = 0.0f; // Initial speed of asteroids
-int levelDuration = 20; // Duration of each level in seconds
-time_t levelStartTime; // Start time of the current level
+int level = 1;
+int numAsteroids = 5;
+float asteroidSpeed = 0.0f;
+int levelDuration = 20;
+time_t levelStartTime;
+time_t gameStartTime;
+int score = 0;
+float scoreMultiplier = 1.0f;
+int health = 100;
+float healthBarWidth = 0.4f;
 
-// Keyboard input function
+const int powerUpDuration = 10;
+const int immunityDuration = 10;
+time_t powerUpStartTime = 0;
+time_t immunityStartTime = 0;
+
 void keyboard(int key, int x, int y) {
     switch (key) {
         case GLUT_KEY_LEFT:
@@ -91,27 +121,37 @@ void keyboard(int key, int x, int y) {
 }
 
 void updateShipPosition() {
-    // Update spaceship position based on velocity
+    int windowWidth = glutGet(GLUT_WINDOW_WIDTH);
+    int windowHeight = glutGet(GLUT_WINDOW_HEIGHT);
+    float aspectRatio = static_cast<float>(windowWidth) / static_cast<float>(windowHeight);
+
     shipX += shipVelX;
     shipY += shipVelY;
 
-    // Check and correct if spaceship goes beyond the boundaries
-    if (shipX + shipSize > 1.0f) {
-        shipX = 1.0f - shipSize;
+    float boundaryX =  aspectRatio;
+    float boundaryY = 1.0f - shipSize / aspectRatio;
+
+    if (shipX > boundaryX) {
+        shipX = boundaryX;
         shipVelX *= friction;
-    } else if (shipX - shipSize < -1.0f) {
-        shipX = -1.0f + shipSize;
+    } else if (shipX < -boundaryX) {
+        shipX = -boundaryX;
         shipVelX *= friction;
     }
 
-    if (shipY + shipSize > 1.0f) {
-        shipY = 1.0f - shipSize;
+    if (shipY > boundaryY) {
+        shipY = boundaryY;
         shipVelY *= friction;
-    } else if (shipY - shipSize < -1.0f) {
-        shipY = -1.0f + shipSize;
+    } else if (shipY < -boundaryY) {
+        shipY = -boundaryY;
         shipVelY *= friction;
     }
 }
+
+bool checkCollision(float x1, float y1, float size1, float x2, float y2, float size2) {
+    return (abs(x1 - x2) * 2 < (size1 + size2)) && (abs(y1 - y2) * 2 < (size1 + size2));
+}
+
 
 void checkAsteroidCollision() {
     for (size_t i = 0; i < asteroids.size(); ++i) {
@@ -119,27 +159,18 @@ void checkAsteroidCollision() {
             Asteroid& asteroid1 = asteroids[i];
             Asteroid& asteroid2 = asteroids[j];
 
-            // Check if the boundaries of the two asteroids touch
             if (fabs(asteroid1.x - asteroid2.x) * 2 < (asteroid1.size + asteroid2.size) &&
                 fabs(asteroid1.y - asteroid2.y) * 2 < (asteroid1.size + asteroid2.size)) {
                 
-                // Calculate new velocities based on conservation of momentum and kinetic energy
-
-                // Calculate total momentum before collision in x and y directions
                 float totalMomentumX = asteroid1.speedX + asteroid2.speedX;
                 float totalMomentumY = asteroid1.speedY + asteroid2.speedY;
-
-                // Calculate center of mass velocity in x and y directions
                 float comVelocityX = totalMomentumX / 2.0f;
                 float comVelocityY = totalMomentumY / 2.0f;
-
-                // Calculate relative velocity in x and y directions
                 float relVelX1 = asteroid1.speedX - comVelocityX;
                 float relVelY1 = asteroid1.speedY - comVelocityY;
                 float relVelX2 = asteroid2.speedX - comVelocityX;
                 float relVelY2 = asteroid2.speedY - comVelocityY;
 
-                // Calculate new velocities after collision using conservation of momentum and kinetic energy
                 asteroid1.speedX = comVelocityX + relVelX2;
                 asteroid1.speedY = comVelocityY + relVelY2;
                 asteroid2.speedX = comVelocityX + relVelX1;
@@ -149,7 +180,6 @@ void checkAsteroidCollision() {
     }
 }
 
-// Function to reset the game for the next level
 void resetGameForNextLevel() {
     shipX = 0.0f;
     shipY = 0.0f;
@@ -159,130 +189,210 @@ void resetGameForNextLevel() {
     levelStartTime = time(NULL);
 }
 
-// Function to handle level transitions
 void checkLevelTransition() {
     time_t currentTime = time(NULL);
     int elapsedTime = difftime(currentTime, levelStartTime);
     if (elapsedTime >= levelDuration) {
-        // Proceed to the next level
         level++;
-        numAsteroids += 3; // Increase the number of asteroids for each level
-        asteroidSpeed += 0.001f; // Increase the speed of asteroids for each level
+        numAsteroids += 3;
         resetGameForNextLevel();
     }
-    if (level>3){
-        cout << "Game Over, You Won!" << endl;
-        exit(0);
+    if (level > 3) {
+        gameState = GAME_WON;
     }
 }
 
-// Render function
+void renderHealthBar() {
+    float barHeight = 0.05f;
+    float barPadding = 0.01f;
+    float barPositionX = 1.0f - healthBarWidth - barPadding;
+    float barPositionY = 1.0f - barHeight - barPadding;
+
+    glColor3f(0.2f, 0.2f, 0.2f);
+    glBegin(GL_QUADS);
+    glVertex2f(barPositionX, barPositionY);
+    glVertex2f(barPositionX + healthBarWidth, barPositionY);
+    glVertex2f(barPositionX + healthBarWidth, barPositionY + barHeight);
+    glVertex2f(barPositionX, barPositionY + barHeight);
+    glEnd();
+
+    glColor3f(0.0f, 1.0f, 0.0f);
+    glBegin(GL_QUADS);
+    glVertex2f(barPositionX, barPositionY);
+    glVertex2f(barPositionX + healthBarWidth * (health / 100.0f), barPositionY);
+    glVertex2f(barPositionX + healthBarWidth * (health / 100.0f), barPositionY + barHeight);
+    glVertex2f(barPositionX, barPositionY + barHeight);
+    glEnd();
+}
+
+void renderPowerUps() {
+    glColor3f(1.0f, 1.0f, 0.0f);
+    for (const auto& powerUp : powerUps) {
+        if (!powerUp.pickedUp) {
+            glPushMatrix();
+            glTranslatef(powerUp.x, powerUp.y, 0.0f);
+            glBegin(GL_TRIANGLES);
+            glVertex2f(0.0f, 0.05f); // Top vertex
+            glVertex2f(-0.03f, -0.05f); // Bottom left vertex
+            glVertex2f(0.03f, -0.05f); // Bottom right vertex
+            glVertex2f(0.0f, 0.05f); // Top vertex
+            glVertex2f(0.05f, 0.0f); // Right vertex
+            glVertex2f(-0.05f, 0.0f); // Left vertex
+            glEnd();
+            glPopMatrix();
+        }
+    }
+}
+
+void handlePowerUp() {
+    if (powerUpStartTime != 0 && difftime(time(NULL), powerUpStartTime) >= powerUpDuration) {
+        powerUpStartTime = 0;
+        health += 5; // Increase health by +5
+    }
+
+    if (immunityStartTime != 0 && difftime(time(NULL), immunityStartTime) >= immunityDuration) {
+        immunityStartTime = 0;
+    }
+}
+
+void spawnPowerUpPeriodically(int value) {
+    if (gameState == PLAYING) {
+        spawnPowerUp();
+        glutTimerFunc(5000, spawnPowerUpPeriodically, 0);
+    }
+}
+
 void display() {
     glClear(GL_COLOR_BUFFER_BIT);
+    int windowWidth = glutGet(GLUT_WINDOW_WIDTH);
+    int windowHeight = glutGet(GLUT_WINDOW_HEIGHT);
 
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
-    gluOrtho2D(-1.0, 1.0, -1.0, 1.0); // Set fixed view window
+    float aspectRatio = static_cast<float>(windowWidth) / static_cast<float>(windowHeight);
+
+    if (aspectRatio > 1.0f) {
+        glViewport(0, 0, windowWidth, windowHeight);
+        gluOrtho2D(-1.0 * aspectRatio, 1.0 * aspectRatio, -1.0, 1.0);
+    } else {
+        glViewport(0, 0, windowWidth, windowHeight);
+        gluOrtho2D(-1.0, 1.0, -1.0 / aspectRatio, 1.0 / aspectRatio);
+    }
 
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
 
-    // Render asteroids
-    glColor3f(1.0f, 0.0f, 0.0f); // Red color for asteroids
-    for (auto& asteroid : asteroids) {
-        asteroid.x += asteroid.speedX;
-        asteroid.y += asteroid.speedY;
+    if (gameState == PLAYING) {
+        glColor3f(1.0f, 0.0f, 0.0f);
+        for (auto& asteroid : asteroids) {
+            asteroid.x += asteroid.speedX;
+            asteroid.y += asteroid.speedY;
 
-        // Boundary checking for asteroids
-        if (asteroid.x < -1.0f || asteroid.x > 1.0f)
-            asteroid.speedX = -asteroid.speedX;
-        if (asteroid.y < -1.0f || asteroid.y > 1.0f)
-            asteroid.speedY = -asteroid.speedY;
+            if (asteroid.x + asteroid.size > aspectRatio || asteroid.x - asteroid.size < -aspectRatio)
+                asteroid.speedX = -asteroid.speedX;
+            if (asteroid.y + asteroid.size > 1.0f || asteroid.y - asteroid.size < -1.0f)
+                asteroid.speedY = -asteroid.speedY;
+
+            glPushMatrix();
+            glTranslatef(asteroid.x, asteroid.y, 0.0f);
+            glBegin(GL_QUADS);
+            glVertex2f(-asteroid.size, asteroid.size);
+            glVertex2f(-asteroid.size, -asteroid.size);
+            glVertex2f(asteroid.size, -asteroid.size);
+            glVertex2f(asteroid.size, asteroid.size);
+            glEnd();
+            glPopMatrix();
+
+            if (checkCollision(shipX, shipY, shipSize, asteroid.x, asteroid.y, asteroid.size)) {
+                health -= static_cast<int>(10 * asteroid.size);
+                cout << "Health: " << health << endl;
+
+                if (health <= 0) {
+                    cout << "Game Over!" << endl;
+                    gameState = GAME_OVER;
+                }
+
+                float jerkMagnitude = 0.02f;
+                shipX += jerkMagnitude * (shipX < asteroid.x ? -1 : 1);
+                shipY += jerkMagnitude * (shipY < asteroid.y ? -1 : 1);
+            }
+        }
+
+        renderPowerUps();
+        handlePowerUp();
+
+        for (auto& powerUp : powerUps) {
+            if (!powerUp.pickedUp && checkCollision(shipX, shipY, shipSize, powerUp.x, powerUp.y, powerUp.size)) {
+                powerUp.pickedUp = true;
+                powerUpStartTime = time(NULL);
+                immunityStartTime = time(NULL);
+                powerUpSpawned = false; // Reset power-up spawn flag
+            }
+        }
+
+        checkAsteroidCollision();
+        checkLevelTransition();
+        updateShipPosition();
 
         glPushMatrix();
-        glTranslatef(asteroid.x, asteroid.y, 0.0f);
-        glBegin(GL_QUADS);
-        glVertex2f(-asteroid.size, asteroid.size);
-        glVertex2f(-asteroid.size, -asteroid.size);
-        glVertex2f(asteroid.size, -asteroid.size);
-        glVertex2f(asteroid.size, asteroid.size);
+        glTranslatef(shipX, shipY, 0.0f);
+
+        float elongationFactor = 1.0f + fabs(shipVelY) * 10.0f;
+
+        glBegin(GL_TRIANGLES);
+        glColor3f(1.0f, 1.0f, 1.0f);
+        glVertex2f(0.0f, 0.1f);
+        glVertex2f(-0.1f * elongationFactor, -0.1f);
+        glVertex2f(0.1f * elongationFactor, -0.1f);
         glEnd();
         glPopMatrix();
 
-        // Check collision with spaceship
-        if (checkCollision(shipX, shipY, shipSize, asteroid.x, asteroid.y, asteroid.size)) {
-            // Collision detected with spaceship
-            // Reduce life
-            lives--;
-            cout << "Lives Remaining: " << lives << endl;
+        renderHealthBar();
 
-            // If no lives left, game over
-            if (lives <= 0) {
-                cout << "Game Over!" << endl;
-                exit(0);
-            } else {
-                // Reset spaceship position
-                shipX = 0.0f;
-                shipY = 0.0f;
-            }
+        time_t currentTime = time(NULL);
+        int elapsedTime = difftime(currentTime, gameStartTime);
+        score = elapsedTime * scoreMultiplier;
+        glColor3f(1.0f, 1.0f, 1.0f);
+        glRasterPos2f(-0.9f, 0.9f);
+        string scoreText = "Score: " + to_string(score);
+        for (char c : scoreText) {
+            glutBitmapCharacter(GLUT_BITMAP_TIMES_ROMAN_24, c);
+        }
+    } else if (gameState == GAME_OVER) {
+        glColor3f(1.0f, 0.0f, 0.0f);
+        glRasterPos2f(-0.5f, 0.0f);
+        string gameOverText = "Game Over!";
+        for (char c : gameOverText) {
+            glutBitmapCharacter(GLUT_BITMAP_TIMES_ROMAN_24, c);
+        }
+    } else if (gameState == GAME_WON) {
+        glColor3f(0.0f, 1.0f, 0.0f);
+        glRasterPos2f(-0.5f, 0.0f);
+        string gameWonText = "You Won!";
+        for (char c : gameWonText) {
+            glutBitmapCharacter(GLUT_BITMAP_TIMES_ROMAN_24, c);
         }
     }
 
-    checkAsteroidCollision();
-    checkLevelTransition();
-    updateShipPosition(); // Update ship position
-
-    // Render spaceship
-    glPushMatrix();
-    glTranslatef(shipX, shipY, 0.0f);
-    glBegin(GL_TRIANGLES);
-    glColor3f(1.0f, 1.0f, 1.0f);
-    glVertex2f(0.0f, 0.1f);      // Top
-    glVertex2f(-0.1f, -0.1f);    // Bottom left
-    glVertex2f(0.1f, -0.1f);     // Bottom right
-    glEnd();
-    glPopMatrix();
-
-    // Render lives remaining
-    glPushMatrix();
-    glLoadIdentity();
-    glTranslatef(-0.9f, 0.9f, 0.0f); // Position lives text
-    glColor3f(1.0f, 1.0f, 1.0f); // White color for text
-    string livesText = "Lives: " + to_string(lives);
-    for (char& c : livesText) {
-        glutBitmapCharacter(GLUT_BITMAP_TIMES_ROMAN_24, c);
-    }
-    glPopMatrix();
-
-    // Render current level
-    glPushMatrix();
-    glLoadIdentity();
-    glTranslatef(0.0f, 0.8f, 0.0f); // Position level text
-    glColor3f(1.0f, 1.0f, 1.0f); // White color for text
-    string levelText = "Level: " + to_string(level);
-    for (char& c : levelText) {
-        glutBitmapCharacter(GLUT_BITMAP_TIMES_ROMAN_24, c);
-    }
-    glPopMatrix();
-
     glutSwapBuffers();
-    glutPostRedisplay(); // Request redisplay to continue rendering
+    glutPostRedisplay();
 }
 
-// Main function
 int main(int argc, char** argv) {
     glutInit(&argc, argv);
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
     glutInitWindowSize(800, 600);
     glutCreateWindow("Space Dodge Game");
-
+    glutTimerFunc(5000, spawnPowerUpPeriodically, 0);
     glutDisplayFunc(display);
     glutSpecialFunc(keyboard);
 
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 
-    resetGameForNextLevel(); // Initialize the game for the first level
-    
+    gameStartTime = time(NULL);
+
+    resetGameForNextLevel();
+
     glutMainLoop();
     return 0;
 }
