@@ -401,7 +401,7 @@ void display() {
         glRasterPos2f(-0.9f, 0.9f);
         string scoreText = "Score: " + to_string(score);
         for (char c : scoreText) {
-            glutBitmapCharacter(GLUT_BITMAP_TIMES_ROMAN_24, c);
+            glutBitmapCharacter(GLUT_BITMAP_9_BY_15, c);
         }
 
         // Apply translation with limited camera position
@@ -497,7 +497,7 @@ void display() {
             glRasterPos2f(-0.5f, 0.0f);
             string gameOverText = "Game Over!";
             for (char c : gameOverText) {
-                glutBitmapCharacter(GLUT_BITMAP_TIMES_ROMAN_24, c);
+                glutBitmapCharacter(GLUT_BITMAP_9_BY_15, c);
             }
             // Display final score including remaining health as bonus
             int finalScore = score + health;
@@ -505,13 +505,13 @@ void display() {
             glRasterPos2f(-0.5f, -0.1f);
             string finalScoreText = "Final Score: " + to_string(finalScore);
             for (char c : finalScoreText) {
-                glutBitmapCharacter(GLUT_BITMAP_TIMES_ROMAN_24, c);
+                glutBitmapCharacter(GLUT_BITMAP_9_BY_15, c);
             }
             glColor3f(0.0f, 1.0f, 0.0f);
             glRasterPos2f(-0.5f, -0.2f);
             string gameWonText2 = "Press F1 to restart";
             for (char c : gameWonText2) {
-                glutBitmapCharacter(GLUT_BITMAP_TIMES_ROMAN_24, c);
+                glutBitmapCharacter(GLUT_BITMAP_9_BY_15, c);
             }
     } 
         else if (gameState == GAME_WON) {
@@ -519,20 +519,20 @@ void display() {
             glRasterPos2f(-0.5f, 0.0f);
             string gameWonText = "You Won!";
             for (char c : gameWonText) {
-                glutBitmapCharacter(GLUT_BITMAP_TIMES_ROMAN_24, c);
+                glutBitmapCharacter(GLUT_BITMAP_9_BY_15, c);
             }
             int finalScore = score + health;
             glColor3f(1.0f, 1.0f, 1.0f);
             glRasterPos2f(-0.5f, -0.1f);
             string finalScoreText = "Final Score: " + to_string(finalScore);
             for (char c : finalScoreText) {
-                glutBitmapCharacter(GLUT_BITMAP_TIMES_ROMAN_24, c);
+                glutBitmapCharacter(GLUT_BITMAP_9_BY_15, c);
             }
             glColor3f(0.0f, 1.0f, 0.0f);
             glRasterPos2f(-0.5f, -0.2f);
             string gameWonText2 = "Press F1 to restart";
             for (char c : gameWonText2) {
-                glutBitmapCharacter(GLUT_BITMAP_TIMES_ROMAN_24, c);
+                glutBitmapCharacter(GLUT_BITMAP_9_BY_15, c);
             }
     }
 
