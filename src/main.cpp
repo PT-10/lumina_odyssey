@@ -548,12 +548,20 @@ void display() {
             glPushMatrix();
             glTranslatef(asteroid.x, asteroid.y, 0.0f);
             glBegin(GL_POLYGON);
-            for (int i = 0; i < 360; i++) {
-                float radian = i * (3.14159265358979323846 / 180);
-                float x = asteroid.size * cos(radian);
-                float y = asteroid.size * sin(radian);
+            // Generate random number of vertices for each asteroid
+            int numVertices = rand() % 5 + 5; // Random number between 5 and 10
+            for (int i = 0; i < numVertices; ++i) {
+                // Generate random angles for each vertex
+                float angle = static_cast<float>(i) * 2 * M_PI / numVertices;
+                // Generate random radius for each vertex
+                float radius = asteroid.size * (0.5f + static_cast<float>(rand()) / RAND_MAX * 0.5f);
+                // Calculate vertex position
+                float x = radius * cos(angle);
+                float y = radius * sin(angle);
+                // Draw the vertex
                 glVertex2f(x, y);
             }
+
             glEnd();
             glPopMatrix();
 
