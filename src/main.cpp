@@ -29,7 +29,7 @@ float friction = 0.99f;
 
 int level = 1;
 int numAsteroids = 25;
-int levelDuration = 20;
+int levelDuration = 15;
 time_t levelStartTime;
 time_t gameStartTime;
 int score = 0;
@@ -49,6 +49,7 @@ bool powerUpSpawned = false;
 static bool initialized = false;
 static float stationX = 0.0f;
 static float stationY = 0.0f;
+
 
 struct Asteroid {
     float x;
@@ -209,16 +210,59 @@ void renderSpaceStation() {
             initialized = true;
         }
 
-        glColor3f(0.0f, 0.0f, 1.0f); // Blue color
-        glPushMatrix();
-        glTranslatef(stationX, stationY, 0.0f);
-        glBegin(GL_QUADS);
-        glVertex2f(-0.05f, 0.05f); // Top left vertex
-        glVertex2f(0.05f, 0.05f);  // Top right vertex
-        glVertex2f(0.05f, -0.05f); // Bottom right vertex
-        glVertex2f(-0.05f, -0.05f); // Bottom left vertex
-        glEnd();
-        glPopMatrix();
+        // Station color: Yellow and blue
+    glColor3f(1.0f, 1.0f, 0.0f); // Yellow
+    glPushMatrix();
+
+    glTranslatef(stationX, stationY, 0.0f);
+    glBegin(GL_QUADS);
+    glVertex2f(-0.1f, 0.1f); // Top left vertex
+    glVertex2f(0.1f, 0.1f);  // Top right vertex
+    glVertex2f(0.1f, -0.1f); // Bottom right vertex
+    glVertex2f(-0.1f, -0.1f); // Bottom left vertex
+    glEnd();
+
+    // Antennas
+    glColor3f(0.0f, 0.0f, 1.0f); // Blue
+    glBegin(GL_LINES);
+    glVertex2f(0.0f, 0.1f); // Top center
+    glVertex2f(0.0f, 0.2f); // Antenna top
+
+    glVertex2f(-0.05f, 0.05f); // Left top
+    glVertex2f(-0.05f, 0.15f); // Antenna left top
+
+    glVertex2f(0.05f, 0.05f); // Right top
+    glVertex2f(0.05f, 0.15f); // Antenna right top
+    glEnd();
+
+    // Satellite dish
+    glColor3f(0.5f, 0.5f, 0.5f); // Gray
+    glBegin(GL_POLYGON);
+    for (int i = 0; i < 360; ++i) {
+        float angle = static_cast<float>(i) * 3.14159f / 180.0f;
+        float x = 0.05f * cos(angle);
+        float y = 0.05f * sin(angle) + 0.05f;
+        glVertex2f(x, y);
+    }
+    glEnd();
+
+    // Realistic window effects
+    glColor3f(0.8f, 0.8f, 0.8f); // Light gray
+    glBegin(GL_QUADS);
+    // Left window
+    glVertex2f(-0.08f, 0.02f);
+    glVertex2f(-0.05f, 0.02f);
+    glVertex2f(-0.05f, -0.02f);
+    glVertex2f(-0.08f, -0.02f);
+
+    // Right window
+    glVertex2f(0.08f, 0.02f);
+    glVertex2f(0.05f, 0.02f);
+    glVertex2f(0.05f, -0.02f);
+    glVertex2f(0.08f, -0.02f);
+    glEnd();
+    
+    glPopMatrix();
     }
 }
 
@@ -380,6 +424,51 @@ void display() {
     if (cameraY > 0.0)
         cameraY = 0.0;
 
+    // Draw minimap
+    glPushMatrix();
+    glLoadIdentity();
+    glTranslatef(-aspectRatio + 0.25f, -0.75f, 0.0f); // Adjust translation to bottom left corner
+    glColor3f(0.2f, 0.2f, 0.2f);
+    glBegin(GL_POLYGON);
+    for (int i = 0; i < 360; ++i) {
+        float angle = static_cast<float>(i) * 3.14159f / 180.0f;
+        float x = 0.23f * cos(angle);
+        float y = 0.23f * sin(angle);
+        glVertex2f(x, y);
+    }
+    glEnd();
+
+    // Draw spaceship position on minimap
+    glPushMatrix();
+    glTranslatef((shipX) * 0.1f, (shipY-0.75) * 0.1f, 0.0f); // Scale and adjust position
+    glColor3f(1.0f, 0.0f, 0.0f); // Red color for spaceship
+    glBegin(GL_POLYGON);
+    for (int i = 0; i < 360; ++i) {
+        float angle = static_cast<float>(i) * 3.14159f / 180.0f;
+        float x = 0.015f * cos(angle); // Scale the dot size
+        float y = 0.015f * sin(angle); // Scale the dot size
+        glVertex2f(x, y);
+    }
+    glEnd();
+    glPopMatrix();
+
+    // Draw space station position on minimap for level 3
+    if (level == 3) {
+        glPushMatrix();
+        glTranslatef((stationX) * 0.1f, (stationY-0.75) * 0.1f, 0.0f); // Scale and adjust position
+        glColor3f(0.0f, 0.0f, 1.0f); // Blue color for space station
+        glBegin(GL_POLYGON);
+        for (int i = 0; i < 360; ++i) {
+            float angle = static_cast<float>(i) * 3.14159f / 180.0f;
+            float x = 0.015f * cos(angle); // Scale the dot size
+            float y = 0.015f * sin(angle); // Scale the dot size
+            glVertex2f(x, y);
+        }
+        glEnd();
+        glPopMatrix();
+    }
+    glPopMatrix();
+
     if (gameState == PLAYING) {
         renderHealthBar();
 
@@ -479,8 +568,8 @@ void display() {
 
         float elongationFactor = 1.0f + fabs(shipVelY) * 10.0f;
 
-glBegin(GL_TRIANGLES);
-        // Main body of the rocket
+        glBegin(GL_TRIANGLES);
+        // Main body of the 
         glColor3f(1.0f, 1.0f, 1.0f);
         glVertex2f(0.0f, 0.1f);
         glVertex2f(-0.05f * elongationFactor, -0.1f);
