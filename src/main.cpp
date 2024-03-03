@@ -479,11 +479,24 @@ void display() {
 
         float elongationFactor = 1.0f + fabs(shipVelY) * 10.0f;
 
-        glBegin(GL_TRIANGLES);
+glBegin(GL_TRIANGLES);
+        // Main body of the rocket
         glColor3f(1.0f, 1.0f, 1.0f);
         glVertex2f(0.0f, 0.1f);
+        glVertex2f(-0.05f * elongationFactor, -0.1f);
+        glVertex2f(0.05f * elongationFactor, -0.1f);
+
+        // Left wing
+        glColor3f(1.0f, 0.0f, 0.0f); // Red color
+        glVertex2f(-0.05f * elongationFactor, -0.05f);
         glVertex2f(-0.1f * elongationFactor, -0.1f);
+        glVertex2f(-0.05f * elongationFactor, -0.1f);
+
+        // Right wing
+        glColor3f(1.0f, 0.0f, 0.0f); // Red color
+        glVertex2f(0.05f * elongationFactor, -0.05f);
         glVertex2f(0.1f * elongationFactor, -0.1f);
+        glVertex2f(0.05f * elongationFactor, -0.1f);
         glEnd();
         glPopMatrix();
 
